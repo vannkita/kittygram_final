@@ -24,6 +24,7 @@ services:
     image: widvvm/kittygram_frontend:latest
     volumes:
       - static:/app/build/static/
+      - ./frontend/build:/usr/share/nginx/html
     restart: always
 
   gateway:

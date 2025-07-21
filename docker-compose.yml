@@ -24,6 +24,7 @@ services:
     build: ./frontend
     volumes:
       - static:/app/build/static/
+      - ./frontend/build:/usr/share/nginx/html
     restart: always
 
   gateway:
