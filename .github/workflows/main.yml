@@ -1,0 +1,60 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push backend
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/kittygram_backend ./backend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/kittygram_backend
+
+      - name: Build and push frontend
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/kittygram_frontend ./frontend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/kittygram_frontend
+
+      - name: Build and push gateway
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/kittygram_gateway ./nginx
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/kittygram_gateway
+
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/kittygram
+            docker-compose pull
+            docker-compose down
+            docker-compose up -d
+            docker-compose exec backend python manage.py migrate
+            docker-compose exec backend python manage.py collectstatic --noinput
+
+      - name: Send Telegram Notify
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} -d text="✅ Kittygram успешно задеплоен!"
