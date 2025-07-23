@@ -44,4 +44,4 @@ typing_extensions==4.14.1
 uritemplate==4.2.0
 urllib3==2.5.0
 webcolors==1.11.1
-gunicorn
+gunicorn==21.2.0
